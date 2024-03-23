@@ -1,0 +1,73 @@
+
+// create database and collections
+use techshop
+db.createCollection("users")
+db.users.createIndex({ "name": 1 })
+db.createCollection("products")
+db.createCollection("transactions")
+
+
+// Insert sample users
+db.users.insertMany([
+    { name: "Alice", email: "alice@example.com", password: "alicepass" },
+    { name: "Bob", email: "bob@example.com", password: "bobpass" }
+  ])
+  
+  // Insert sample products
+  // for testing purposes, the objectIds should be changed to actual user object IDs
+  db.products.insertMany([
+    { name: "Laptop Pro", description: "High-end laptop", price: 1200, userId: ObjectId("65ff3109a3e8c71fd08bf203") },
+    { name: "Smartphone Plus", description: "Latest model smartphone", price: 800, userId: ObjectId("65ff3109a3e8c71fd08bf203") },
+    { name: "Smartwatch", description: "Fitness tracker", price: 200, userId: ObjectId("65ff3109a3e8c71fd08bf203")}
+  ])
+  
+  // Insert sample transactions
+  db.transactions.insertMany([
+    { productId: ObjectId("65ff33fea3e8c71fd08bf204"), buyerId: ObjectId("65ff3109a3e8c71fd08bf203"), date: new ISODate(), quantity: 1 },
+    { productId: ObjectId("65ff33fea3e8c71fd08bf205"), buyerId: ObjectId("65ff3109a3e8c71fd08bf203"), date: new ISODate(), quantity: 2 }
+
+  ])
+ 
+  
+
+
+
+// query to find all products listed by a specific user:
+db.products.find({ userId: ObjectId("65ff3109a3e8c71fd08bf203") })
+
+
+//query to find the total amount spent by a specific user:
+
+db.transactions.aggregate([
+  { $match: { buyerId: ObjectId("65ff3109a3e8c71fd08bf203") } },
+  { $lookup: {
+     from: "products",
+     localField: "productId",
+     foreignField: "_id",
+     as: "productDetails"
+  }},
+  { $unwind: "$productDetails" },
+  { $group: {
+     _id: "$buyerId",
+     totalSpent: { $sum: { $multiply: ["$quantity", "$productDetails.price"] } }
+  }}
+])
+
+
+// query to find the top 5 most popular products 
+
+db.transactions.aggregate([
+  { $group: {
+     _id: "$productId",
+     count: { $sum: 1 }
+  }},
+  { $sort: { count: -1 } },
+  { $limit: 5 },
+  { $lookup: {
+     from: "products",
+     localField: "_id",
+     foreignField: "_id",
+     as: "productDetails"
+  }},
+  { $unwind: "$productDetails" }
+])
